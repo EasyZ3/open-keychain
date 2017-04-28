@@ -18,9 +18,41 @@
 package org.sufficientlysecure.keychain.pgp;
 
 
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.io.ObjectOutputStream;
 import java.io.Serializable;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
+
+import org.bouncycastle.util.encoders.Base64;
+
 
 public abstract class SecurityProblem implements Serializable {
+
+    String getIdentifier() {
+        if (!isIdentifiable()) {
+            return null;
+        }
+
+        try {
+            ByteArrayOutputStream out = new ByteArrayOutputStream();
+            ObjectOutputStream oos = new ObjectOutputStream(out);
+            oos.writeObject(this);
+            oos.close();
+
+            byte[] digest = MessageDigest.getInstance("SHA1").digest(out.toByteArray());
+            return Base64.toBase64String(digest);
+        } catch (NoSuchAlgorithmException e) {
+            throw new IllegalStateException("No sha1 digest!");
+        } catch (IOException e) {
+            throw new IllegalStateException("IOException while serializing for identity!");
+        }
+    }
+
+    public boolean isIdentifiable() {
+        return false;
+    }
 
     public static abstract class KeySecurityProblem extends SecurityProblem {
         public final long masterKeyId;
@@ -31,6 +63,11 @@ public abstract class SecurityProblem implements Serializable {
             this.masterKeyId = masterKeyId;
             this.subKeyId = subKeyId;
             this.algorithm = algorithm;
+        }
+
+        @Override
+        public boolean isIdentifiable() {
+            return true;
         }
     }
 
